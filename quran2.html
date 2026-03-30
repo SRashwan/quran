@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Al-Quran Premium</title>
+    <meta name="theme-color" content="#b9502b">
+    <meta name="description" content="Professional Quran Web App with Kufi fonts and Audio">
+    
+    <!-- Dynamic Manifest Link (Injected via JS) -->
+    <link id="manifest-link" rel="manifest" href="">
+
+    <!-- Fonts: Inter for UI, Noto Kufi Arabic for Quranic Text -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Kufi+Arabic:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        kufi: ['"Noto Kufi Arabic"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#fdf8f6',
+                            100: '#f2e8e5',
+                            500: '#b9502b', /* Terracotta / Burnt Orange */
+                            600: '#9c4222',
+                            700: '#7a331a',
+                            900: '#4a1e0f',
+                        },
+                        darkBg: '#1f110b', /* Deep warm sepia/brown */
+                        darkCard: '#2d1a11', /* Slightly lighter warm brown */
+                        warmText: '#e8d6c8', /* Warm parchment text */
+                        warmTextMuted: '#ba9e8a' /* Muted warm text */
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 1s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Styles & Utilities */
+        :root {
+            --arabic-font-size: 28px;
+        }
+        
+        body {
+            -webkit-tap-highlight-color: transparent;
+            scroll-behavior: smooth;
+        }
+
+        /* Beautiful Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #5c3929;
+        }
+
+        /* Verse Number Ornament (Updated with primary color #b9502b) */
+        .verse-number {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='none' stroke='%23b9502b' stroke-width='4' d='M50 5A45 45 0 1 1 5 50 45.05 45.05 0 0 1 50 5Zm0 12a33 33 0 1 0 33 33A33.04 33.04 0 0 0 50 17Z'/%3E%3Cpath fill='%23b9502b' d='M50 10a40 40 0 1 1-40 40 40.04 40.04 0 0 1 40-40Zm0 6a34 34 0 1 0 34 34 34.04 34.04 0 0 0-34-34Z' opacity='0.3'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            font-size: 0.8rem;
+            margin: 0 8px;
+            font-family: 'Inter', sans-serif;
+            color: inherit;
+        }
+
+        .arabic-text {
+            font-size: var(--arabic-font-size);
+            line-height: 2.2;
+            direction: rtl;
+        }
+
+        /* Glassmorphism Header */
+        .glass-header {
+            background: rgba(253, 248, 246, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        .dark .glass-header {
+            background: rgba(31, 17, 11, 0.85);
+            border-bottom: 1px solid rgba(92, 57, 41, 0.6);
+        }
+
+        /* Active playing verse highlight */
+        .verse-card {
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        .verse-card.playing {
+            background-color: rgba(185, 80, 43, 0.05);
+            border-color: rgba(185, 80, 43, 0.3);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            transform: scale(1.01);
+        }
+        .dark .verse-card.playing {
+            background-color: rgba(185, 80, 43, 0.12);
+            border-color: rgba(185, 80, 43, 0.4);
+        }
+
+        /* Loader */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #b9502b;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        .dark .loader { border: 3px solid #382217; border-top: 3px solid #b9502b; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Hide logic */
+        .hidden-view { display: none !important; }
+    </style>
+</head>
+<body class="bg-primary-50 dark:bg-darkBg text-gray-800 dark:text-warmText transition-colors duration-300">
+
+    <!-- Intro / Dedication Screen -->
+    <div id="intro-screen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-gradient-to-br from-darkBg via-[#2a1710] to-[#140b07] text-warmText p-6 transition-opacity duration-700">
+        <!-- Decorative Background Pattern Elements -->
+        <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23b9502b\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+        
+        <div class="max-w-xl w-full text-center space-y-8 animate-fade-in-up relative z-10">
+            <!-- Icon -->
+            <div class="text-primary-500 text-6xl md:text-7xl mb-6 opacity-90 drop-shadow-[0_0_15px_rgba(185,80,43,0.3)]">
+                <i class="fa-solid fa-book-open-reader"></i>
+            </div>
+            
+            <h1 class="font-kufi text-2xl md:text-3xl font-bold text-primary-500 mb-2">
+                إهداء إلى الأخت الكريمة
+            </h1>
+            <h2 class="font-kufi text-5xl md:text-6xl font-extrabold text-[#fff3eb] mb-8 drop-shadow-md">
+                نوران رشوان
+            </h2>
+            
+            <div class="relative py-6 px-4">
+                <i class="fa-solid fa-quote-right absolute top-0 right-2 text-3xl text-primary-900/40"></i>
+                <p class="font-kufi text-xl md:text-2xl leading-relaxed text-warmTextMuted text-center">
+                    "اللهم اجعل القرآن العظيم ربيع قلبها، ونور صدرها، وجلاء حزنها، وذهاب همها، وارزقها بكل حرفٍ حسنة، واجعله حجةً لها لا عليها."
+                </p>
+                <i class="fa-solid fa-quote-left absolute bottom-0 left-2 text-3xl text-primary-900/40"></i>
+            </div>
+            
+            <div class="pt-8">
+                <button id="skip-intro-btn" class="font-kufi bg-primary-600 hover:bg-primary-500 text-white rounded-full px-10 py-3 text-xl transition-all shadow-lg shadow-primary-900/50 hover:scale-105 border border-primary-500/30 flex items-center justify-center gap-3 mx-auto">
+                    <span>متابعة للمصحف</span>
+                    <i class="fa-solid fa-arrow-left text-sm mt-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div id="app" class="max-w-4xl mx-auto min-h-screen flex flex-col relative shadow-2xl bg-white dark:bg-darkBg">
+        
+        <!-- Header -->
+        <header class="glass-header sticky top-0 z-40 px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <button id="back-btn" class="hidden w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-darkCard text-primary-600 dark:text-primary-500 transition-colors">
+                    <i class="fa-solid fa-arrow-left text-lg"></i>
+                </button>
+                <div class="flex items-center gap-2 text-primary-600 dark:text-primary-500">
+                    <i class="fa-solid fa-book-quran text-2xl"></i>
+                    <h1 class="font-bold text-xl tracking-tight" id="header-title">Al-Quran</h1>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button id="search-toggle" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-darkCard transition-colors">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+                <button id="settings-toggle" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-darkCard transition-colors">
+                    <i class="fa-solid fa-sliders"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Search Bar (Hidden by default) -->
+        <div id="search-container" class="hidden px-4 py-3 bg-white dark:bg-darkBg border-b border-gray-200 dark:border-primary-900 shadow-sm z-30">
+            <div class="relative">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-warmTextMuted"></i>
+                <input type="text" id="search-input" placeholder="Search Surah (e.g., Yaseen, 36)" class="w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-darkCard border-none rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm dark:text-warmText transition-all placeholder-gray-500 dark:placeholder-warmTextMuted">
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 relative overflow-x-hidden">
+            
+            <!-- View 1: Surah List -->
+            <div id="view-surah-list" class="p-4">
+                
+                <!-- Quick Continue Card (Mocked initially, updated via JS) -->
+                <div id="continue-reading" class="hidden mb-6 bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden cursor-pointer hover:shadow-xl transition-shadow border border-primary-500/20">
+                    <div class="absolute right-[-20px] top-[-20px] opacity-10">
+                        <i class="fa-solid fa-book-open text-9xl"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <p class="text-sm text-primary-100 font-medium mb-1"><i class="fa-solid fa-clock mr-1"></i> Continue Reading</p>
+                        <h2 id="continue-surah-name" class="text-2xl font-bold font-kufi">البقرة</h2>
+                        <p id="continue-surah-en" class="text-sm mt-1 text-primary-100">Al-Baqarah • Ayah 1</p>
+                    </div>
+                </div>
+
+                <!-- Surah Grid Loader -->
+                <div id="surah-loader" class="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-warmTextMuted">
+                    <div class="loader mb-4"></div>
+                    <p>Loading Divine Words...</p>
+                </div>
+
+                <!-- Surah Grid -->
+                <div id="surah-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 hidden-view">
+                    <!-- Cards injected via JS -->
+                </div>
+            </div>
+
+            <!-- View 2: Surah Reader -->
+            <div id="view-reader" class="hidden-view pb-24">
+                <!-- Header Card inside reader -->
+                <div id="reader-header" class="bg-primary-50 dark:bg-darkCard p-6 text-center border-b border-primary-100 dark:border-primary-900 mb-6">
+                    <h2 id="read-surah-ar" class="text-4xl font-bold font-kufi text-primary-600 dark:text-primary-500 mb-2 drop-shadow-sm"></h2>
+                    <h3 id="read-surah-en" class="text-xl font-semibold dark:text-warmText"></h3>
+                    <p id="read-surah-info" class="text-sm text-gray-500 dark:text-warmTextMuted mt-2 uppercase tracking-wider"></p>
+                    
+                    <!-- Bismillah Image/Text -->
+                    <div id="bismillah-container" class="mt-6 mb-2">
+                        <p class="font-kufi text-3xl text-gray-800 dark:text-warmText">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
+                    </div>
+                    
+                    <button id="play-full-surah-btn" class="mt-6 inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-500 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-md shadow-primary-900/30">
+                        <i class="fa-solid fa-play"></i> Play Surah
+                    </button>
+                </div>
+
+                <!-- Reader Loader -->
+                <div id="reader-loader" class="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-warmTextMuted hidden-view">
+                    <div class="loader mb-4"></div>
+                    <p>Loading Verses...</p>
+                </div>
+
+                <!-- Verses Container -->
+                <div id="verses-container" class="px-4 max-w-3xl mx-auto space-y-6">
+                    <!-- Verses injected via JS -->
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Global Audio Player Bar -->
+        <div id="audio-player-bar" class="fixed bottom-0 left-0 right-0 max-w-4xl mx-auto bg-white dark:bg-darkCard border-t border-gray-200 dark:border-primary-900 p-4 transform translate-y-full transition-transform duration-300 z-50 flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.4)]">
+            <div class="flex items-center gap-3 w-2/3">
+                <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center text-primary-600 dark:text-primary-500 flex-shrink-0 border border-primary-500/20">
+                    <i class="fa-solid fa-music"></i>
+                </div>
+                <div class="truncate">
+                    <p id="player-surah-name" class="text-sm font-bold truncate dark:text-warmText">Surah Name</p>
+                    <p id="player-verse-info" class="text-xs text-gray-500 dark:text-warmTextMuted truncate">Mishary Alafasy • Ayah <span id="player-ayah-num">1</span></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-xl">
+                <button id="player-prev" class="text-gray-400 dark:text-warmTextMuted hover:text-primary-500 transition-colors"><i class="fa-solid fa-backward-step"></i></button>
+                <button id="player-play-pause" class="w-12 h-12 bg-primary-600 hover:bg-primary-500 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform"><i class="fa-solid fa-pause"></i></button>
+                <button id="player-next" class="text-gray-400 dark:text-warmTextMuted hover:text-primary-500 transition-colors"><i class="fa-solid fa-forward-step"></i></button>
+                <button id="player-close" class="text-gray-400 hover:text-red-500 dark:text-warmTextMuted dark:hover:text-red-400 transition-colors ml-2 text-base"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <!-- Progress Bar -->
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gray-200 dark:bg-primary-900">
+                <div id="player-progress" class="h-full bg-primary-500 w-0 transition-all duration-300"></div>
+            </div>
+        </div>
+
+        <!-- Settings Modal/Drawer -->
+        <div id="settings-modal" class="fixed inset-0 bg-black/60 z-50 hidden-view flex justify-end">
+            <div class="w-full max-w-sm bg-white dark:bg-darkBg border-l border-primary-900/30 h-full shadow-2xl animate-slide-in p-6 flex flex-col gap-6 overflow-y-auto">
+                <div class="flex justify-between items-center border-b border-gray-200 dark:border-primary-900 pb-4">
+                    <h2 class="text-xl font-bold dark:text-warmText">Settings</h2>
+                    <button id="close-settings" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-darkCard flex items-center justify-center hover:bg-gray-200 dark:hover:bg-primary-900/50 dark:text-warmText">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Theme Toggle -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="font-medium dark:text-warmText">Dark Mode</p>
+                        <p class="text-xs text-gray-500 dark:text-warmTextMuted">Brownish Sepia Theme</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="theme-toggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-darkCard peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-primary-900 peer-checked:bg-primary-500"></div>
+                    </label>
+                </div>
+
+                <!-- Translation Toggle -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="font-medium dark:text-warmText">Show Translation</p>
+                        <p class="text-xs text-gray-500 dark:text-warmTextMuted">English (Saheeh Intl)</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="translation-toggle" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-darkCard peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-primary-900 peer-checked:bg-primary-500"></div>
+                    </label>
+                </div>
+
+                <!-- Font Size Slider -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="font-medium dark:text-warmText">Arabic Font Size</p>
+                        <span id="font-size-val" class="text-xs font-bold text-primary-600 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded">28px</span>
+                    </div>
+                    <input type="range" id="font-size-slider" min="20" max="60" value="28" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-darkCard accent-primary-500">
+                    <div class="flex justify-between text-xs text-gray-400 dark:text-warmTextMuted mt-2 font-kufi">
+                        <span>أ</span>
+                        <span class="text-lg">أ</span>
+                        <span class="text-2xl">أ</span>
+                    </div>
+                </div>
+                
+                <div class="mt-auto text-center pt-6 border-t border-gray-200 dark:border-primary-900">
+                    <p class="text-xs text-gray-500 dark:text-warmTextMuted">App Data powered by Alquran.cloud</p>
+                    <p class="text-xs text-gray-500 dark:text-warmTextMuted mt-1">Audio: Mishary Rashid Alafasy</p>
+                    <p class="text-xs text-primary-500 mt-4 font-kufi font-bold opacity-70">إهداء إلى نوران رشوان</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Native Audio Element -->
+    <audio id="quran-audio" preload="auto"></audio>
+
+    <script>
+        // --- State Management ---
+        const savedTheme = localStorage.getItem('quran_theme');
+        // Default to true (Dark Mode) if no setting is saved
+        const defaultDarkMode = savedTheme === null ? true : savedTheme === 'dark';
+
+        const state = {
+            surahs: [],
+            currentSurah: null,
+            currentVerses: [], // Array of objects: { ar, en, audio, number }
+            isPlaying: false,
+            playingIndex: -1, // index in currentVerses
+            isFullSurahPlay: false,
+            settings: {
+                darkMode: defaultDarkMode,
+                showTranslation: localStorage.getItem('quran_trans') !== 'false',
+                fontSize: localStorage.getItem('quran_fontsize') || '28',
+                lastRead: JSON.parse(localStorage.getItem('quran_lastread')) || null
+            }
+        };
+
+        // --- DOM Elements ---
+        const UI = {
+            intro: {
+                screen: document.getElementById('intro-screen'),
+                skipBtn: document.getElementById('skip-intro-btn')
+            },
+            views: {
+                list: document.getElementById('view-surah-list'),
+                reader: document.getElementById('view-reader')
+            },
+            grid: document.getElementById('surah-grid'),
+            versesContainer: document.getElementById('verses-container'),
+            loaders: {
+                grid: document.getElementById('surah-loader'),
+                reader: document.getElementById('reader-loader')
+            },
+            header: {
+                title: document.getElementById('header-title'),
+                backBtn: document.getElementById('back-btn'),
+                searchToggle: document.getElementById('search-toggle'),
+                searchContainer: document.getElementById('search-container'),
+                searchInput: document.getElementById('search-input'),
+                settingsToggle: document.getElementById('settings-toggle')
+            },
+            readerHeader: {
+                container: document.getElementById('reader-header'),
+                ar: document.getElementById('read-surah-ar'),
+                en: document.getElementById('read-surah-en'),
+                info: document.getElementById('read-surah-info'),
+                bismillah: document.getElementById('bismillah-container'),
+                playFullBtn: document.getElementById('play-full-surah-btn')
+            },
+            settings: {
+                modal: document.getElementById('settings-modal'),
+                closeBtn: document.getElementById('close-settings'),
+                themeToggle: document.getElementById('theme-toggle'),
+                transToggle: document.getElementById('translation-toggle'),
+                fontSlider: document.getElementById('font-size-slider'),
+                fontVal: document.getElementById('font-size-val')
+            },
+            player: {
+                bar: document.getElementById('audio-player-bar'),
+                audioObj: document.getElementById('quran-audio'),
+                playPauseBtn: document.getElementById('player-play-pause'),
+                prevBtn: document.getElementById('player-prev'),
+                nextBtn: document.getElementById('player-next'),
+                closeBtn: document.getElementById('player-close'),
+                progress: document.getElementById('player-progress'),
+                surahName: document.getElementById('player-surah-name'),
+                ayahNum: document.getElementById('player-ayah-num')
+            },
+            continueRead: {
+                card: document.getElementById('continue-reading'),
+                ar: document.getElementById('continue-surah-name'),
+                en: document.getElementById('continue-surah-en')
+            }
+        };
+
+        // --- Initialization ---
+        async function initApp() {
+            applySettings();
+            setupEventListeners();
+            generatePWA();
+            await fetchSurahsList();
+            checkLastRead();
+        }
+
+        function applySettings() {
+            // Theme
+            if (state.settings.darkMode) {
+                document.documentElement.classList.add('dark');
+                UI.settings.themeToggle.checked = true;
+            } else {
+                document.documentElement.classList.remove('dark');
+                UI.settings.themeToggle.checked = false;
+            }
+            // Translation
+            UI.settings.transToggle.checked = state.settings.showTranslation;
+            // Font Size
+            UI.settings.fontSlider.value = state.settings.fontSize;
+            UI.settings.fontVal.innerText = `${state.settings.fontSize}px`;
+            document.documentElement.style.setProperty('--arabic-font-size', `${state.settings.fontSize}px`);
+        }
+
+        // --- API Calls ---
+        async function fetchSurahsList() {
+            try {
+                const res = await fetch('https://api.alquran.cloud/v1/surah');
+                const data = await res.json();
+                state.surahs = data.data;
+                renderSurahGrid(state.surahs);
+                UI.loaders.grid.classList.add('hidden-view');
+                UI.grid.classList.remove('hidden-view');
+            } catch (err) {
+                console.error("Failed to fetch surahs", err);
+                UI.loaders.grid.innerHTML = `<p class="text-red-500">Failed to load data. Please check connection.</p>`;
+            }
+        }
+
+        async function fetchSurahData(surahId) {
+            UI.views.list.classList.add('hidden-view');
+            UI.views.reader.classList.remove('hidden-view');
+            UI.versesContainer.innerHTML = '';
+            UI.readerHeader.container.style.display = 'none';
+            UI.loaders.reader.classList.remove('hidden-view');
+            
+            // Header config
+            UI.header.title.innerText = "Loading...";
+            UI.header.backBtn.classList.remove('hidden');
+            UI.header.searchToggle.classList.add('hidden');
+            UI.header.searchContainer.classList.add('hidden');
+
+            try {
+                // Fetching Uthmani Text, English Translation (Saheeh), and Audio (Alafasy)
+                const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}/editions/quran-uthmani,en.sahih,ar.alafasy`);
+                const data = await res.json();
+                
+                const arabicData = data.data[0];
+                const engData = data.data[1];
+                const audioData = data.data[2];
+
+                state.currentSurah = arabicData;
+                
+                // Construct normalized verse array
+                state.currentVerses = arabicData.ayahs.map((ayah, i) => ({
+                    number: ayah.numberInSurah,
+                    globalNumber: ayah.number,
+                    ar: ayah.text,
+                    en: engData.ayahs[i].text,
+                    audio: audioData.ayahs[i].audio,
+                    juz: ayah.juz
+                }));
+
+                renderSurahReader();
+            } catch (err) {
+                console.error("Failed to fetch surah", err);
+                UI.loaders.reader.innerHTML = `<p class="text-red-500">Failed to load surah. Please try again.</p>`;
+            }
+        }
+
+        // --- Rendering ---
+        function renderSurahGrid(surahs) {
+            UI.grid.innerHTML = '';
+            surahs.forEach(surah => {
+                const card = document.createElement('div');
+                card.className = "bg-white dark:bg-darkCard p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-primary-900 hover:shadow-md hover:border-primary-500 dark:hover:border-primary-500 transition-all cursor-pointer flex items-center justify-between group";
+                card.onclick = () => fetchSurahData(surah.number);
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center font-bold text-sm text-gray-500 dark:text-warmTextMuted group-hover:bg-primary-100 dark:group-hover:bg-primary-900 group-hover:text-primary-600 dark:group-hover:text-primary-500 transition-colors relative">
+                            <i class="fa-solid fa-star absolute text-3xl opacity-10 text-primary-500"></i>
+                            ${surah.number}
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-warmText group-hover:text-primary-600 dark:group-hover:text-primary-500 transition-colors">${surah.englishName}</h3>
+                            <p class="text-xs text-gray-500 dark:text-warmTextMuted uppercase tracking-wider">${surah.revelationType} • ${surah.numberOfAyahs} Ayahs</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <h4 class="font-kufi font-bold text-xl text-primary-600 dark:text-primary-500">${surah.name}</h4>
+                    </div>
+                `;
+                UI.grid.appendChild(card);
+            });
+        }
+
+        function renderSurahReader() {
+            UI.loaders.reader.classList.add('hidden-view');
+            UI.readerHeader.container.style.display = 'block';
+            
+            const surah = state.currentSurah;
+            UI.header.title.innerText = surah.englishName;
+            UI.readerHeader.ar.innerText = surah.name;
+            UI.readerHeader.en.innerText = surah.englishNameTranslation;
+            UI.readerHeader.info.innerText = `Surah ${surah.number} • ${surah.revelationType} • ${surah.ayahs.length} Ayahs`;
+
+            // Bismillah logic (Hide for Surah 1 and 9, as Surah 1 has it as verse 1)
+            if (surah.number === 1 || surah.number === 9) {
+                UI.readerHeader.bismillah.style.display = 'none';
+            } else {
+                UI.readerHeader.bismillah.style.display = 'block';
+            }
+
+            UI.versesContainer.innerHTML = '';
+            
+            state.currentVerses.forEach((verse, i) => {
+                // Remove Bismillah from text if it's not Al-Fatiha, as API prepends it sometimes
+                let cleanAr = verse.ar;
+                if (surah.number !== 1 && i === 0 && cleanAr.startsWith("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ")) {
+                    cleanAr = cleanAr.replace("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ", "");
+                }
+
+                const card = document.createElement('div');
+                card.className = "verse-card bg-white dark:bg-darkCard rounded-2xl p-6 shadow-sm border border-transparent dark:border-primary-900/40";
+                card.id = `verse-${i}`;
+                
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-primary-900/60 pb-3">
+                        <span class="bg-gray-100 dark:bg-darkBg text-gray-600 dark:text-warmTextMuted px-3 py-1 rounded-full text-xs font-bold border border-transparent dark:border-primary-900/50">Ayah ${verse.number}</span>
+                        <div class="flex gap-2">
+                            <button onclick="playVerse(${i})" class="w-8 h-8 rounded-full flex items-center justify-center text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors">
+                                <i class="fa-solid fa-play"></i>
+                            </button>
+                            <button onclick="saveBookmark(${surah.number}, ${verse.number}, '${surah.name}', '${surah.englishName}')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 dark:text-warmTextMuted hover:text-yellow-500 dark:hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors">
+                                <i class="fa-regular fa-bookmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6 text-right">
+                        <p class="font-kufi arabic-text text-gray-900 dark:text-warmText">${cleanAr} <span class="verse-number text-gray-700 dark:text-warmText">${verse.number.toLocaleString('ar-EG')}</span></p>
+                    </div>
+                    
+                    <div class="translation-text ${state.settings.showTranslation ? '' : 'hidden'}">
+                        <p class="text-gray-600 dark:text-warmTextMuted text-sm leading-relaxed border-l-2 border-primary-500 pl-3">${verse.en}</p>
+                    </div>
+                `;
+                UI.versesContainer.appendChild(card);
+            });
+
+            // Save last read automatically
+            saveBookmark(surah.number, 1, surah.name, surah.englishName, true);
+        }
+
+        // --- Audio Player Logic ---
+        function playVerse(index, fullSurah = false) {
+            if (index < 0 || index >= state.currentVerses.length) {
+                stopAudio();
+                return;
+            }
+            
+            state.playingIndex = index;
+            state.isFullSurahPlay = fullSurah;
+            const verse = state.currentVerses[index];
+            
+            // UI Updates
+            document.querySelectorAll('.verse-card').forEach(el => el.classList.remove('playing'));
+            const activeCard = document.getElementById(`verse-${index}`);
+            if (activeCard) {
+                activeCard.classList.add('playing');
+                // Auto Scroll smoothly with offset
+                const y = activeCard.getBoundingClientRect().top + window.scrollY - 100;
+                window.scrollTo({top: y, behavior: 'smooth'});
+            }
+
+            // Player Bar Updates
+            UI.player.bar.classList.remove('translate-y-full');
+            UI.player.surahName.innerText = state.currentSurah.englishName;
+            UI.player.ayahNum.innerText = verse.number;
+            UI.player.playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            
+            // Audio setup
+            UI.player.audioObj.src = verse.audio;
+            UI.player.audioObj.play().then(() => {
+                state.isPlaying = true;
+            }).catch(e => console.error("Audio play error", e));
+        }
+
+        function togglePlayPause() {
+            if (state.isPlaying) {
+                UI.player.audioObj.pause();
+                UI.player.playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+                state.isPlaying = false;
+            } else {
+                if (state.playingIndex === -1) return;
+                UI.player.audioObj.play();
+                UI.player.playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                state.isPlaying = true;
+            }
+        }
+
+        function stopAudio() {
+            UI.player.audioObj.pause();
+            UI.player.audioObj.currentTime = 0;
+            state.isPlaying = false;
+            state.playingIndex = -1;
+            state.isFullSurahPlay = false;
+            UI.player.bar.classList.add('translate-y-full');
+            document.querySelectorAll('.verse-card').forEach(el => el.classList.remove('playing'));
+        }
+
+        // --- Event Listeners Setup ---
+        function setupEventListeners() {
+            // Intro Screen Skip
+            UI.intro.skipBtn.addEventListener('click', () => {
+                UI.intro.screen.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => UI.intro.screen.remove(), 700);
+            });
+
+            // Navigation
+            UI.header.backBtn.addEventListener('click', () => {
+                stopAudio();
+                UI.views.reader.classList.add('hidden-view');
+                UI.views.list.classList.remove('hidden-view');
+                UI.header.title.innerText = "Al-Quran";
+                UI.header.backBtn.classList.add('hidden');
+                UI.header.searchToggle.classList.remove('hidden');
+                checkLastRead();
+            });
+
+            // Search functionality
+            UI.header.searchToggle.addEventListener('click', () => {
+                UI.header.searchContainer.classList.toggle('hidden');
+                if(!UI.header.searchContainer.classList.contains('hidden')) {
+                    UI.header.searchInput.focus();
+                }
+            });
+
+            UI.header.searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = state.surahs.filter(s => 
+                    s.englishName.toLowerCase().includes(term) || 
+                    s.number.toString() === term ||
+                    s.englishNameTranslation.toLowerCase().includes(term)
+                );
+                renderSurahGrid(filtered);
+            });
+
+            // Settings Modal
+            UI.header.settingsToggle.addEventListener('click', () => UI.settings.modal.classList.remove('hidden-view'));
+            UI.settings.closeBtn.addEventListener('click', () => UI.settings.modal.classList.add('hidden-view'));
+            
+            // Close settings if clicked outside
+            UI.settings.modal.addEventListener('click', (e) => {
+                if (e.target === UI.settings.modal) UI.settings.modal.classList.add('hidden-view');
+            });
+
+            // Settings Controls
+            UI.settings.themeToggle.addEventListener('change', (e) => {
+                const isDark = e.target.checked;
+                state.settings.darkMode = isDark;
+                localStorage.setItem('quran_theme', isDark ? 'dark' : 'light');
+                if(isDark) document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+            });
+
+            UI.settings.transToggle.addEventListener('change', (e) => {
+                const show = e.target.checked;
+                state.settings.showTranslation = show;
+                localStorage.setItem('quran_trans', show);
+                document.querySelectorAll('.translation-text').forEach(el => {
+                    if(show) el.classList.remove('hidden');
+                    else el.classList.add('hidden');
+                });
+            });
+
+            UI.settings.fontSlider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                state.settings.fontSize = val;
+                localStorage.setItem('quran_fontsize', val);
+                UI.settings.fontVal.innerText = `${val}px`;
+                document.documentElement.style.setProperty('--arabic-font-size', `${val}px`);
+            });
+
+            // Audio Player Controls
+            UI.player.playPauseBtn.addEventListener('click', togglePlayPause);
+            UI.player.closeBtn.addEventListener('click', stopAudio);
+            UI.player.nextBtn.addEventListener('click', () => {
+                if (state.playingIndex < state.currentVerses.length - 1) {
+                    playVerse(state.playingIndex + 1, state.isFullSurahPlay);
+                }
+            });
+            UI.player.prevBtn.addEventListener('click', () => {
+                if (state.playingIndex > 0) {
+                    playVerse(state.playingIndex - 1, state.isFullSurahPlay);
+                }
+            });
+
+            // Audio Native Events
+            UI.player.audioObj.addEventListener('ended', () => {
+                if (state.isFullSurahPlay && state.playingIndex < state.currentVerses.length - 1) {
+                    playVerse(state.playingIndex + 1, true);
+                } else {
+                    UI.player.playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+                    state.isPlaying = false;
+                }
+            });
+
+            UI.player.audioObj.addEventListener('timeupdate', () => {
+                const audio = UI.player.audioObj;
+                if(audio.duration) {
+                    const percent = (audio.currentTime / audio.duration) * 100;
+                    UI.player.progress.style.width = `${percent}%`;
+                }
+            });
+
+            // Play Full Surah
+            UI.readerHeader.playFullBtn.addEventListener('click', () => {
+                playVerse(0, true);
+            });
+        }
+
+        // --- Utilities ---
+        function saveBookmark(surahId, ayahNum, arName, enName, isAuto = false) {
+            const data = { surahId, ayahNum, arName, enName, timestamp: Date.now() };
+            if (isAuto) {
+                localStorage.setItem('quran_lastread', JSON.stringify(data));
+                state.settings.lastRead = data;
+            } else {
+                // Future expansion: array of explicit bookmarks
+                localStorage.setItem('quran_lastread', JSON.stringify(data));
+                state.settings.lastRead = data;
+                
+                // Show tiny visual feedback
+                const btn = event.currentTarget;
+                const icon = btn.querySelector('i');
+                icon.classList.remove('fa-regular');
+                icon.classList.add('fa-solid', 'text-yellow-500');
+                setTimeout(() => {
+                    icon.classList.remove('fa-solid', 'text-yellow-500');
+                    icon.classList.add('fa-regular');
+                }, 1000);
+            }
+        }
+
+        function checkLastRead() {
+            if (state.settings.lastRead && UI.views.list.classList.contains('hidden-view') === false) {
+                const lr = state.settings.lastRead;
+                UI.continueRead.card.classList.remove('hidden');
+                UI.continueRead.ar.innerText = lr.arName;
+                UI.continueRead.en.innerText = `${lr.enName} • Ayah ${lr.ayahNum}`;
+                UI.continueRead.card.onclick = () => {
+                    fetchSurahData(lr.surahId).then(() => {
+                        // Small delay to let DOM render before scrolling
+                        setTimeout(() => {
+                            const target = document.getElementById(`verse-${lr.ayahNum - 1}`);
+                            if(target) {
+                                target.scrollIntoView({behavior: 'smooth', block: 'center'});
+                                target.classList.add('playing'); // highlight temporarily
+                                setTimeout(() => target.classList.remove('playing'), 2000);
+                            }
+                        }, 500);
+                    });
+                };
+            } else {
+                UI.continueRead.card.classList.add('hidden');
+            }
+        }
+
+        // --- PWA Generation (Single File Magic) ---
+        function generatePWA() {
+            // 1. Generate Manifest
+            const manifest = {
+                "name": "Al-Quran Premium",
+                "short_name": "Quran",
+                "description": "Professional Web Quran with Kufi fonts and Audio",
+                "start_url": ".",
+                "display": "standalone",
+                "background_color": "#1f110b",
+                "theme_color": "#b9502b",
+                "icons": [{
+                    "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23b9502b' rx='100'/%3E%3Cpath fill='%23fff' d='M256 120c-75 0-136 61-136 136s61 136 136 136 136-61 136-136-61-136-136-136zm0 240c-57.3 0-104-46.7-104-104S198.7 152 256 152s104 46.7 104 104-46.7 104-104 104z'/%3E%3C/svg%3E",
+                    "sizes": "512x512",
+                    "type": "image/svg+xml"
+                }]
+            };
+            
+            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
+
+            // 2. Generate and Register Service Worker for offline capability
+            const swCode = `
+                const CACHE_NAME = 'quran-cache-v1';
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+                self.addEventListener('fetch', (e) => {
+                    // Caching strategy: Network First for API, Cache First for assets
+                    if(e.request.url.includes('api.alquran.cloud')) {
+                        e.respondWith(
+                            fetch(e.request).then(res => {
+                                const resClone = res.clone();
+                                caches.open(CACHE_NAME).then(cache => cache.put(e.request, resClone));
+                                return res;
+                            }).catch(() => caches.match(e.request))
+                        );
+                    }
+                });
+            `;
+            const swBlob = new Blob([swCode], {type: 'application/javascript'});
+            const swUrl = URL.createObjectURL(swBlob);
+            
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register(swUrl).catch(err => console.log('SW setup skipped (expected in some strict environments)'));
+            }
+        }
+
+        // Run
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
